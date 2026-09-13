@@ -17,16 +17,29 @@ export const UPLOADS_STORE = 'course-uploads';
 const CONTENT_KEY = 'data';
 const RESOURCES_KEY = 'index';
 
+/** Optional manual Netlify Blobs credentials — a fallback for deployments where Netlify's
+ *  automatic ("zero-config") Blobs wiring doesn't reach the function at runtime (symptom:
+ *  `MissingBlobsEnvironmentError` even on a real production deploy, not local dev). Set
+ *  `BLOBS_SITE_ID` and `BLOBS_TOKEN` as environment variables on the Netlify site to force
+ *  explicit credentials; see README "Troubleshooting" for where to find these two values.
+ *  When they're unset (the normal case), this returns nothing extra and Netlify's automatic
+ *  credentials are used exactly as before. */
+function manualBlobsConfig() {
+  const siteID = process.env.BLOBS_SITE_ID;
+  const token = process.env.BLOBS_TOKEN;
+  return siteID && token ? { siteID, token } : {};
+}
+
 function contentStore() {
-  return getStore({ name: CONTENT_STORE, consistency: 'strong' });
+  return getStore({ name: CONTENT_STORE, consistency: 'strong', ...manualBlobsConfig() });
 }
 
 function resourcesStore() {
-  return getStore({ name: RESOURCES_STORE, consistency: 'strong' });
+  return getStore({ name: RESOURCES_STORE, consistency: 'strong', ...manualBlobsConfig() });
 }
 
 export function uploadsStore() {
-  return getStore({ name: UPLOADS_STORE, consistency: 'strong' });
+  return getStore({ name: UPLOADS_STORE, consistency: 'strong', ...manualBlobsConfig() });
 }
 
 function seedContent(): ContentBlob {

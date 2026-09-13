@@ -135,10 +135,21 @@ If the home page (or any page) shows **Internal server error** with a **Try agai
 
 ### Common causes
 
-- **Netlify Blobs not provisioned/reachable for this site** — this is the most likely cause if the Node version pin below didn't fix it. `@netlify/blobs`'s zero-config `getStore()` call relies on Netlify automatically injecting Blobs credentials into the function's environment at deploy time; this should be automatic on every Netlify site with no add-on needed, but if the error text (via `DEBUG_ERRORS` or the function log) mentions `Blobs`, `MissingBlobsEnvironmentError`, or similar, that confirms it — try **Trigger deploy → Clear cache and deploy site** once, and if it persists, this is worth reporting to Netlify support with the exact error text since it points to something specific to how this site's Blobs access is configured.
+- **Netlify Blobs not provisioned/reachable for this site** — this is the most likely cause if the Node version pin below didn't fix it. `@netlify/blobs`'s zero-config `getStore()` call relies on Netlify automatically injecting Blobs credentials into the function's environment at deploy time; this should be automatic on every Netlify site with no add-on needed, but if the error text (via `DEBUG_ERRORS` or the function log) says `MissingBlobsEnvironmentError` (or mentions `Blobs` generally), that confirms it. First try **Trigger deploy → Clear cache and deploy site** once — a stale build cache is the most common reason the automatic wiring doesn't reach a function. If that doesn't clear it, use the manual-credentials fallback below instead of waiting on Netlify support.
 - **Missing/short `JWT_SECRET`** — only affects `/api/auth/*` and `/api/admin/*`, not `/api/course`, but set it anyway (Site configuration → Environment variables) since the admin dashboard needs it.
 - **Node version mismatch** — this project pins `NODE_VERSION = "20"` in `netlify.toml` for the *build* step (added because `@netlify/blobs` and `jose` need a modern Node runtime); note this is separate from the Node runtime the deployed *functions* actually execute on, which Netlify controls independently — if the error persists after this pin, it's unlikely to be a Node-version issue and is more likely the Blobs cause above.
 - **First deploy after changing build settings** — trigger a new deploy with "Clear cache and deploy site" so Netlify re-bundles the functions from scratch.
+
+### Fallback: manual Netlify Blobs credentials (fixes `MissingBlobsEnvironmentError`)
+
+If "Clear cache and deploy site" doesn't resolve a `MissingBlobsEnvironmentError`, skip Netlify's automatic Blobs wiring and supply credentials explicitly — this always works regardless of why the automatic path isn't reaching your functions.
+
+1. **Get your Site ID**: in the Netlify dashboard, open this site → **Site configuration → General → Site details** → copy the **Site ID** (a UUID like `1a2b3c4d-...`).
+2. **Create a Personal Access Token**: click your account avatar (top right) → **User settings → OAuth applications** (or **Applications**) → **Personal access tokens → New access token**. Give it any name (e.g. "putils-course-blobs") and copy the token immediately — Netlify only shows it once.
+3. In this site's **Site configuration → Environment variables**, add:
+   - `BLOBS_SITE_ID` = the Site ID from step 1
+   - `BLOBS_TOKEN` = the token from step 2 (tick **Contains secret values** for this one)
+4. Trigger a new deploy. The app will now use these explicit credentials instead of relying on automatic injection.
 
 Once you have the exact error text (from `DEBUG_ERRORS` or the function log), that pinpoints the fix precisely — share it for a targeted diagnosis rather than continuing to guess.
 
