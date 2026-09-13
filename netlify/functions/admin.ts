@@ -1,10 +1,11 @@
-import type { Handler, HandlerEvent } from '@netlify/functions';
+import type { HandlerEvent } from '@netlify/functions';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyAdminSession } from '../lib/auth';
 import { badRequest, json, notFound, pathSegments, serverError, unauthorized } from '../lib/http';
 import { getContent, saveContent, getResources, saveResources, uploadsStore, getFullCourseData, importCourseData, resetToSeed } from '../lib/store';
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES, parseMultipart, sanitizeFileName, toArrayBuffer } from '../lib/upload';
 import type { Activity, CourseData, DayPlan, Quiz, Resource, Topic } from '../../src/types';
+import { v2Adapter } from '../lib/v2';
 
 async function requireAdmin(event: HandlerEvent): Promise<boolean> {
   return verifyAdminSession(event);
@@ -18,7 +19,7 @@ function readJsonBody<T>(event: HandlerEvent): T {
   }
 }
 
-export const handler: Handler = async (event) => {
+const legacyHandler = async (event: HandlerEvent) => {
   const segments = pathSegments(event, 'admin');
   const [route, subId, subAction] = segments;
 
@@ -347,3 +348,5 @@ export const handler: Handler = async (event) => {
     return serverError(err);
   }
 };
+
+export default v2Adapter(legacyHandler);

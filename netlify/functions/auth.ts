@@ -1,9 +1,10 @@
-import type { Handler } from '@netlify/functions';
+import type { HandlerEvent } from '@netlify/functions';
 import bcrypt from 'bcryptjs';
 import { isRateLimited, signAdminSession, verifyAdminSession, SESSION_MAX_AGE } from '../lib/auth';
 import { badRequest, json, pathSegments, serverError, sessionCookie, clearSessionCookie, unauthorized } from '../lib/http';
+import { v2Adapter } from '../lib/v2';
 
-export const handler: Handler = async (event) => {
+const legacyHandler = async (event: HandlerEvent) => {
   const [action] = pathSegments(event, 'auth');
 
   try {
@@ -57,3 +58,5 @@ export const handler: Handler = async (event) => {
     return serverError(err);
   }
 };
+
+export default v2Adapter(legacyHandler);

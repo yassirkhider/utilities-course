@@ -234,3 +234,19 @@ All routes are exposed under `/api/*` (rewritten to Netlify Functions by `netlif
 ## First Admin Setup
 
 On first deploy, the first request to any read endpoint automatically seeds the default course structure (5 days, 16 topics with full technical content, 15 activities, 7 quizzes, and placeholder resource entries for every topic). Later deploys never re-seed or erase existing data — only an explicit **Reset to Default Sample Data** action in Admin → Settings does that.
+
+## Netlify Blobs production fix (September 2026)
+
+This project now uses **Netlify Functions API v2** (default-export `Request`/`Response` handlers) for every serverless endpoint. This matters because Netlify's automatic Blobs runtime credentials are provided to Functions v2. The previous Functions v1 named `handler` exports could deploy successfully but fail at runtime with:
+
+`MissingBlobsEnvironmentError: The environment has not been configured to use Netlify Blobs ... siteID, token`
+
+### Normal deployment
+
+Use Git-based continuous deployment or the Netlify CLI so Netlify builds the project and deploys both `dist` and `netlify/functions`. In the normal v2 runtime **you do not need to create a Blobs token**.
+
+### Optional manual fallback
+
+If an unusual runtime still does not receive Netlify's automatic Blobs context, create a Netlify Personal Access Token and add it as a **Functions-scoped** environment variable named `BLOBS_TOKEN`. The app will automatically use Netlify's runtime `SITE_ID`. `BLOBS_SITE_ID` is only needed if you intentionally want to override the runtime project/site ID.
+
+Do not put tokens in `netlify.toml`, source code, or any `VITE_*` variable because those can be exposed to the browser.

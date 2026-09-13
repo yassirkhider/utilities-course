@@ -1,8 +1,9 @@
-import type { Handler } from '@netlify/functions';
+import type { HandlerEvent } from '@netlify/functions';
 import { getResources } from '../lib/store';
 import { json, notFound, pathSegments, serverError } from '../lib/http';
+import { v2Adapter } from '../lib/v2';
 
-export const handler: Handler = async (event) => {
+const legacyHandler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') return json(405, { error: 'Method not allowed' });
   try {
     const all = await getResources();
@@ -24,3 +25,5 @@ export const handler: Handler = async (event) => {
     return serverError(err);
   }
 };
+
+export default v2Adapter(legacyHandler);

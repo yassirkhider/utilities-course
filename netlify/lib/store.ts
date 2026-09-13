@@ -17,29 +17,36 @@ export const UPLOADS_STORE = 'course-uploads';
 const CONTENT_KEY = 'data';
 const RESOURCES_KEY = 'index';
 
-/** Optional manual Netlify Blobs credentials — a fallback for deployments where Netlify's
- *  automatic ("zero-config") Blobs wiring doesn't reach the function at runtime (symptom:
- *  `MissingBlobsEnvironmentError` even on a real production deploy, not local dev). Set
- *  `BLOBS_SITE_ID` and `BLOBS_TOKEN` as environment variables on the Netlify site to force
- *  explicit credentials; see README "Troubleshooting" for where to find these two values.
- *  When they're unset (the normal case), this returns nothing extra and Netlify's automatic
- *  credentials are used exactly as before. */
-function manualBlobsConfig() {
-  const siteID = process.env.BLOBS_SITE_ID;
-  const token = process.env.BLOBS_TOKEN;
-  return siteID && token ? { siteID, token } : {};
+/**
+ * Netlify Functions v2 automatically injects the Blobs context, so normally
+ * getStore(name) is all that is required.
+ *
+ * This optional fallback is useful for unusual/manual environments. SITE_ID is
+ * a Netlify read-only runtime variable; therefore an administrator normally only
+ * needs to provide BLOBS_TOKEN (a Netlify PAT) if automatic Blobs injection is
+ * unavailable. BLOBS_SITE_ID can override the runtime site id when necessary.
+ */
+function manualBlobsConfig(): { siteID: string; token: string } | undefined {
+  const siteID = process.env.BLOBS_SITE_ID || process.env.SITE_ID || process.env.NETLIFY_SITE_ID;
+  const token = process.env.BLOBS_TOKEN || process.env.NETLIFY_AUTH_TOKEN;
+  return siteID && token ? { siteID, token } : undefined;
+}
+
+function openStore(name: string) {
+  const manual = manualBlobsConfig();
+  return manual ? getStore(name, manual) : getStore(name);
 }
 
 function contentStore() {
-  return getStore({ name: CONTENT_STORE, consistency: 'strong', ...manualBlobsConfig() });
+  return openStore(CONTENT_STORE);
 }
 
 function resourcesStore() {
-  return getStore({ name: RESOURCES_STORE, consistency: 'strong', ...manualBlobsConfig() });
+  return openStore(RESOURCES_STORE);
 }
 
 export function uploadsStore() {
-  return getStore({ name: UPLOADS_STORE, consistency: 'strong', ...manualBlobsConfig() });
+  return openStore(UPLOADS_STORE);
 }
 
 function seedContent(): ContentBlob {
@@ -49,7 +56,7 @@ function seedContent(): ContentBlob {
 
 export async function getContent(): Promise<ContentBlob> {
   const store = contentStore();
-  const existing = await store.get(CONTENT_KEY, { type: 'json' });
+  const existing = await store.get(CONTENT_KEY, { type: 'json', consistency: 'strong' });
   if (existing) return existing as ContentBlob;
   const seeded = seedContent();
   await store.setJSON(CONTENT_KEY, seeded);
@@ -62,7 +69,7 @@ export async function saveContent(data: ContentBlob): Promise<void> {
 
 export async function getResources(): Promise<Resource[]> {
   const store = resourcesStore();
-  const existing = await store.get(RESOURCES_KEY, { type: 'json' });
+  const existing = await store.get(RESOURCES_KEY, { type: 'json', consistency: 'strong' });
   if (existing) return existing as Resource[];
   await store.setJSON(RESOURCES_KEY, courseSeed.resources);
   return courseSeed.resources;

@@ -1,12 +1,13 @@
-import type { Handler } from '@netlify/functions';
+import type { HandlerEvent } from '@netlify/functions';
 import { uploadsStore } from '../lib/store';
 import { getResources } from '../lib/store';
 import { badRequest, json, notFound, pathSegments, serverError } from '../lib/http';
+import { v2Adapter } from '../lib/v2';
 
 // Streams a previously-uploaded file back to the client for viewing/downloading.
 // Access is public (resources are training material, not confidential), but the
 // blob key is an unguessable UUID and only resolvable through a known resource id.
-export const handler: Handler = async (event) => {
+const legacyHandler = async (event: HandlerEvent) => {
   if (event.httpMethod !== 'GET') return json(405, { error: 'Method not allowed' });
   const [resourceId] = pathSegments(event, 'file');
   if (!resourceId) return badRequest('Resource id is required');
@@ -35,3 +36,5 @@ export const handler: Handler = async (event) => {
     return serverError(err);
   }
 };
+
+export default v2Adapter(legacyHandler);
